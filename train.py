@@ -55,11 +55,11 @@ def eval_epoch(model,val_data, optimizer, device):
                 desc='  - (Validation)   ', leave=False):
 
             # prepare data
-            src_seq, t1,t2,t3 = map(lambda x: x.to(device).float(), batch)
+            src_seq, mask,t1,t2,t3 = map(lambda x: x.to(device).float(), batch)
             b_size=src_seq.shape[0]
             # forward
             optimizer.zero_grad()
-            pred = model(src_seq)
+            pred = model(src_seq,mask.byte())
 
             # backward
             loss = cal_performance(pred, t1,t2,t3)
@@ -182,8 +182,8 @@ def main():
     train_data_file = "./train_data/train_data.pkl"
     val_data_file = "./train_data/val_data.pkl"
 
-    training_data=DataLoader(RoadDataSet2(train_data_file,opt.n_sample), batch_size=opt.batch_size)
-    validation_data=DataLoader(RoadDataSet2(val_data_file,opt.n_sample), batch_size=opt.batch_size)
+    training_data=DataLoader(RoadDataSet2(train_data_file,opt.n_sample,20), batch_size=opt.batch_size)
+    validation_data=DataLoader(RoadDataSet2(val_data_file,opt.n_sample,4), batch_size=opt.batch_size)
 
     optimizer= optim.Adam(model.parameters())
     train(model, training_data, validation_data, optimizer, device ,opt)

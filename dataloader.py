@@ -41,7 +41,7 @@ class RoadDataSet(Dataset):
         return src_seq, tgt1, tgt2, tgt3
 
 class RoadDataSet2(Dataset):
-    def __init__(self, datafile, n_sample):
+    def __init__(self, datafile, n_sample, vol):
         '''        
         Structure:
         0:n_sample:                               speed for current point in n_sample time
@@ -61,7 +61,7 @@ class RoadDataSet2(Dataset):
         self.n_sample=n_sample
 
     def __len__(self):
-        return(2000*(self.n_time_seg-96))
+        return(vol*(self.n_time_seg-96))
 
     def __getitem__(self, idx):
         rid=idx // (self.n_time_seg-96)
