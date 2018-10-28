@@ -4,20 +4,22 @@ import numpy as np
 
 class Transformer(nn.Module):
     def __init__(self,n_sample,
-                    n_head=8,
-                    n_layers=6,
-                    d_model=512,
-                    d_inner=2048,
-                    d_k=64,
-                    d_v=64,
+                    n_head,
+                    n_layers,
+                    d_model,
+                    d_inner,
+                    d_k,
+                    d_v,
                     dropout=0.1):
         super().__init__()
+        self.fc=nn.Linear(1, d_model)
         self.encoder_stack=nn.ModuleList([EncoderLayer(n_head, d_model,d_inner,d_k,d_v, dropout)] * n_layers)
         self.head1=nn.Linear(n_sample*d_model,1)
         self.head2=nn.Linear(n_sample*d_model,1)
         self.head3=nn.Linear(n_sample*d_model,1)
     
     def forward(self, x, mask=None):
+        x=self.fc(x)
         b, len_q, d_model = x.size()
         #b=temporal_pos_emb+x + spatial_pos_emb#add pos emb to input
         if mask is not None:

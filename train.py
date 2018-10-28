@@ -156,8 +156,10 @@ def main():
 
 
     device = torch.device('cuda' if opt.cuda else 'cpu')
+
+    n_sample=opt.n_sample+1+44*3
     model = Transformer(n_head=opt.n_head,
-                                n_sample=opt.n_sample,
+                                n_sample=n_sample,
                                 n_layers=opt.n_layers,
                                 d_model=opt.d_model,
                                 d_inner=opt.d_inner,
