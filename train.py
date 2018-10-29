@@ -113,6 +113,7 @@ def train(model, training_data, validation_data, optimizer, device, opt):
     log_valid_file = opt.logdir + '/valid.log'
     
     valid_accus = []
+    rmses_15min = []
     for epoch_i in range(opt.epoch):
         print('[ Epoch', epoch_i, ']')
 
@@ -137,7 +138,8 @@ def train(model, training_data, validation_data, optimizer, device, opt):
                   elapse=(time.time()-start)/60))
 
         valid_accus += [vloss]
-
+        rmses_15min += [vloss_15min]
+        
         model_state_dict = model.state_dict()
         checkpoint = {
             'model': model_state_dict,
@@ -150,7 +152,7 @@ def train(model, training_data, validation_data, optimizer, device, opt):
                 torch.save(checkpoint, model_name)
             elif opt.save_mode == 'best':
                 model_name = opt.logdir+'/'+opt.save_model + '.chkpt'
-                if vloss <= min(valid_accus):
+                if vloss <= min(valid_accus) or vloss_15min < min(rmses_15min):
                     torch.save(checkpoint, model_name)
                     print('    - [Info] The checkpoint file has been updated.')
 
@@ -196,7 +198,8 @@ def main():
 
     device = torch.device('cuda' if opt.cuda else 'cpu')
 
-    n_sample=opt.n_sample+1+44*3
+#     n_sample=opt.n_sample+1+44*3
+    n_sample=4+2+opt.n_sample+1+44*3
     model = Transformer(n_head=opt.n_head,
                                 n_sample=n_sample,
                                 n_layers=opt.n_layers,
@@ -224,13 +227,13 @@ def main():
     with  open(log_hyp_file, 'a') as f:
         f.write('%s' % opt)
 
-    from dataloader import RoadDataSet2
+    from dataloader import RoadDataSet3
     from torch.utils.data import DataLoader
     train_data_file = "./train_data/train_data2.pkl"
     val_data_file = "./train_data/val_data2.pkl"
 
-    training_data=DataLoader(RoadDataSet2(train_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
-    validation_data=DataLoader(RoadDataSet2(val_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
+    training_data=DataLoader(RoadDataSet3(train_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
+    validation_data=DataLoader(RoadDataSet3(val_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
 
     optimizer= optim.Adam(model.parameters())
     train(model, training_data, validation_data, optimizer, device ,opt)

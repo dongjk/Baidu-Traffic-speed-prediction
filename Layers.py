@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 class Transformer(nn.Module):
@@ -12,14 +13,14 @@ class Transformer(nn.Module):
                     d_v,
                     dropout=0.1):
         super().__init__()
-        self.fc=nn.Linear(1, d_model)
-        self.encoder_stack=nn.ModuleList([EncoderLayer(n_head, d_model,d_inner,d_k,d_v, dropout)] * n_layers)
+        #self.fc=nn.Linear(1, d_model)
+        self.encoder_stack=nn.ModuleList([EncoderLayer(n_head, d_model,d_inner,d_k,d_v, dropout) for _ in range(n_layers)])
         self.head1=nn.Linear(n_sample*d_model,1)
         self.head2=nn.Linear(n_sample*d_model,1)
         self.head3=nn.Linear(n_sample*d_model,1)
     
     def forward(self, x, mask=None):
-        x=self.fc(x)
+        #x=self.fc(x)
         b, len_q, d_model = x.size()
         #b=temporal_pos_emb+x + spatial_pos_emb#add pos emb to input
         if mask is not None:
@@ -95,11 +96,12 @@ class MultiHeadSelfAttention(nn.Module):
         att=torch.bmm(q,k_transpose)
         att=att/np.sqrt(d_k)
         if mask is not None:
-            att=att.masked_fill(mask, -np.inf) # mask have shape (Batch x len x len)
+            att.masked_fill(mask, -np.inf) # mask have shape (Batch x len x len)
         att=self.softmax(att)
         rslt=self.dropout1(att)
         rslt=torch.bmm(att,v)
         rslt=rslt.view(n_head,b,len_k,d_v).permute(1,2,0,3).contiguous().view(b,len_k,n_head*d_v)
+        rslt=self.fc(rslt)
         rslt=self.dropout2(rslt)
         return rslt
         
@@ -111,7 +113,7 @@ class PointwiseFeedForward(nn.Module):
         self.fc2=nn.Linear(d_inner,d_model)
         self.dropout=nn.Dropout(dropout)
     def forward(self,x):
-        inner = self.fc1(x)
+        inner = F.relu(self.fc1(x))
         output = self.fc2(inner)
         output = self.dropout(output)
         return output
