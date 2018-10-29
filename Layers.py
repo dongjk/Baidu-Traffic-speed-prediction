@@ -95,7 +95,7 @@ class MultiHeadSelfAttention(nn.Module):
         att=torch.bmm(q,k_transpose)
         att=att/np.sqrt(d_k)
         if mask is not None:
-            att.masked_fill(mask, -np.inf) # mask have shape (Batch x len x len)
+            att=att.masked_fill(mask, -np.inf) # mask have shape (Batch x len x len)
         att=self.softmax(att)
         rslt=self.dropout1(att)
         rslt=torch.bmm(att,v)

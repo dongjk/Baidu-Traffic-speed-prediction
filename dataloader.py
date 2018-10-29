@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import pickle
+import random
 
 from torch.utils.data import Dataset, DataLoader
 
@@ -59,11 +60,14 @@ class RoadDataSet2(Dataset):
         self.n_road_seg=self.train_raw.shape[0]
         self.n_time_seg=self.train_raw.shape[1]-24 #-24 because need reserve 6hr time seg for target.
         self.n_sample=n_sample
+        self.n_max=(self.n_road_seg-1)*(self.n_time_seg-96) - 1
+        self.steps=vol
 
     def __len__(self):
-        return(vol*(self.n_time_seg-96))
+        return self.steps
 
     def __getitem__(self, idx):
+        idx=random.randint(0,self.n_max)
         rid=idx // (self.n_time_seg-96)
         tid=idx % (self.n_time_seg-96)
         a = self.train_raw[rid, tid+96-self.n_sample:tid+96] # main speed
@@ -71,7 +75,7 @@ class RoadDataSet2(Dataset):
         c = self.train_raw[self.geo_nebor_idx[rid],tid+96-3:tid+96] #neibor speed in 3 time seg
         src_seq=np.concatenate((a,b,c.reshape(-1))) 
         
-        m=np.ones((self.n_sample+1,))
+        m=np.zeros((self.n_sample+1,))
         mask=np.concatenate((m, self.mask[rid], self.mask[rid], self.mask[rid]))
         
         tgt1=self.train_raw[rid,tid+96+1]
