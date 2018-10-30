@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 class Transformer(nn.Module):
-    def __init__(self,n_sample,
+    def __init__(self,n_max_seq,
                     n_head,
                     n_layers,
                     d_model,
@@ -15,9 +15,15 @@ class Transformer(nn.Module):
         super().__init__()
         #self.fc=nn.Linear(1, d_model)
         self.encoder_stack=nn.ModuleList([EncoderLayer(n_head, d_model,d_inner,d_k,d_v, dropout) for _ in range(n_layers)])
-        self.head1=nn.Linear(n_sample*d_model,1)
-        self.head2=nn.Linear(n_sample*d_model,1)
-        self.head3=nn.Linear(n_sample*d_model,1)
+        self.conv1=nn.Conv1d(d_model,8,30)
+        self.conv2=nn.Conv1d(d_model,8,30)
+        self.conv3=nn.Conv1d(d_model,8,30) # (n_max_seq-29)
+        self.conv1_1=nn.Conv1d(8,16,30)
+        self.conv2_1=nn.Conv1d(8,16,30)
+        self.conv3_1=nn.Conv1d(8,16,30) #
+        self.head1=nn.Linear((n_max_seq-29-29)*16,1)
+        self.head2=nn.Linear((n_max_seq-29-29)*16,1)
+        self.head3=nn.Linear((n_max_seq-29-29)*16,1)
     
     def forward(self, x, mask=None):
         #x=self.fc(x)
@@ -31,10 +37,21 @@ class Transformer(nn.Module):
         
         for encoder in self.encoder_stack:
             a=encoder(x,mask=mask)
-        x=x.view(b,-1)
-        h1=self.head1(x) #15 min
-        h2=self.head2(x) #60 min
-        h3=self.head3(x) #6 hrs
+        x=x.view(b,1,-1)
+        x1=self.conv1(x)
+        x1=self.conv1_1(x1)
+        x1=x1.view(b,-1)
+        h1=self.head1(x1)
+        
+        x2=self.conv2(x)
+        x2=self.conv2_1(x2)
+        x2=x2.view(b,-1)
+        h2=self.head2(x2)
+        
+        x3=self.conv3(x)
+        x3=self.conv3_1(x3)
+        x3=x3.view(b,-1)
+        h3=self.head3(x3)
         return h1,h2,h3
 
 

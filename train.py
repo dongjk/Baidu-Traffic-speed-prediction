@@ -11,7 +11,7 @@ def cal_performance(a , b1,b2,b3):
     loss_60min = torch.sqrt(nn.MSELoss()(a[1],b2.unsqueeze(1)))
     loss_6hour = torch.sqrt(nn.MSELoss()(a[2],b3.unsqueeze(1)))
     
-    loss = loss_15min*.6 + loss_60min*.3 + loss_6hour*.1
+    loss = loss_15min*.4 + loss_60min*.3 + loss_6hour*.3
     
     acc_num_15min = get_acc_num(a[0],b1.unsqueeze(1),0.25) #get number of samples under 25% error.
     acc_num_60min = get_acc_num(a[1],b2.unsqueeze(1),0.25)
@@ -170,11 +170,12 @@ def main():
     ''' Main function '''
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('-dataset', default="RoadDataSet")
     parser.add_argument('-epoch', type=int, default=10)
     parser.add_argument('-batch_size', type=int, default=1024)
     parser.add_argument('-steps', type=int, default=5000)
 
-
+    parser.add_argument('-n_max_seq', type=int, default=30)
     parser.add_argument('-n_sample', type=int, default=24)
     parser.add_argument('-d_model', type=int, default=64)
     parser.add_argument('-d_inner', type=int, default=256)
@@ -199,9 +200,9 @@ def main():
     device = torch.device('cuda' if opt.cuda else 'cpu')
 
 #     n_sample=opt.n_sample+1+44*3
-    n_sample=4+2+opt.n_sample+1+44*3
+#    n_max_seq=4+2+opt.n_sample+1+44*3
     model = Transformer(n_head=opt.n_head,
-                                n_sample=n_sample,
+                                n_max_seq=opt.n_max_seq,
                                 n_layers=opt.n_layers,
                                 d_model=opt.d_model,
                                 d_inner=opt.d_inner,
@@ -227,13 +228,14 @@ def main():
     with  open(log_hyp_file, 'a') as f:
         f.write('%s' % opt)
 
-    from dataloader import RoadDataSet3
+    import dataloader
     from torch.utils.data import DataLoader
-    train_data_file = "./train_data/train_data2.pkl"
-    val_data_file = "./train_data/val_data2.pkl"
-
-    training_data=DataLoader(RoadDataSet3(train_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
-    validation_data=DataLoader(RoadDataSet3(val_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
+    train_data_file = "./train_data/train_data3.pkl"
+    val_data_file = "./train_data/val_data3.pkl"
+    
+    ds=eval("dataloader."+opt.dataset)
+    training_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
+    validation_data=DataLoader(ds(val_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
 
     optimizer= optim.Adam(model.parameters())
     train(model, training_data, validation_data, optimizer, device ,opt)
