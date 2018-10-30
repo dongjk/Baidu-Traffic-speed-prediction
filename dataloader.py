@@ -155,7 +155,7 @@ class RoadDataSet4(Dataset):
 
     def __getitem__(self, idx):
         idx=random.randint(0,self.n_max)
-        rid=idx // (self.n_time_seg-self.n_sample)
+        rid=idx // (self.n_road_seg)
         tid=idx % (self.n_time_seg-self.n_sample)
         all=np.append(np.asarray(rid),self.geo_nebor_idx[rid]) #id and it's neigbours
         
