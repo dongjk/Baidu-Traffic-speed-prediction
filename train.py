@@ -11,7 +11,7 @@ def cal_performance(a , b1,b2,b3):
     loss_60min = torch.sqrt(nn.MSELoss()(a[1],b2.unsqueeze(1)))
     loss_6hour = torch.sqrt(nn.MSELoss()(a[2],b3.unsqueeze(1)))
     
-    loss = loss_15min*.4 + loss_60min*.3 + loss_6hour*.3
+    loss = loss_15min + loss_60min + loss_6hour
     
     acc_num_15min = get_acc_num(a[0],b1.unsqueeze(1),0.25) #get number of samples under 25% error.
     acc_num_60min = get_acc_num(a[1],b2.unsqueeze(1),0.25)
@@ -41,12 +41,14 @@ def train_epoch(model, training_data, optimizer, device, batch_size):
         b_size=src_seq.shape[0]
         # forward
         optimizer.zero_grad()
-        pred = model(src_seq,mask.byte())
+        pred = model(src_seq,mask=mask.byte())
 
         # backward
         loss, loss_15min, loss_60min, loss_6hour, acc_num_15min, \
             acc_num_60min, acc_num_6hour = cal_performance(pred, t1,t2,t3)
-        loss.backward()
+        loss_15min.backward(retain_graph=True)
+        loss_60min.backward(retain_graph=True)
+        loss_6hour.backward()
 
         # update parameters
         optimizer.step()
@@ -84,7 +86,7 @@ def eval_epoch(model,val_data, optimizer, device, batch_size):
         src_seq,mask, t1,t2,t3 = map(lambda x: x.float().to(device), batch)
         # forward
         optimizer.zero_grad()
-        pred = model(src_seq,mask.byte())
+        pred = model(src_seq,mask=mask.byte())
 
         # backward
         loss, loss_15min, loss_60min, loss_6hour, acc_num_15min, \
@@ -139,7 +141,9 @@ def train(model, training_data, validation_data, optimizer, device, opt):
 
         valid_accus += [vloss]
         rmses_15min += [vloss_15min]
-        
+        if vloss_15min<3.71:
+             with open(opt.logdir + '/newrecord', 'a') as f:
+                f.write('{loss_15min:8.5f}\n'.format(loss_15min=vloss_15min))
         model_state_dict = model.state_dict()
         checkpoint = {
             'model': model_state_dict,
@@ -152,7 +156,7 @@ def train(model, training_data, validation_data, optimizer, device, opt):
                 torch.save(checkpoint, model_name)
             elif opt.save_mode == 'best':
                 model_name = opt.logdir+'/'+opt.save_model + '.chkpt'
-                if vloss <= min(valid_accus) or vloss_15min < min(rmses_15min):
+                if vloss <= min(valid_accus) or vloss_15min <= min(rmses_15min):
                     torch.save(checkpoint, model_name)
                     print('    - [Info] The checkpoint file has been updated.')
 
@@ -170,6 +174,7 @@ def main():
     ''' Main function '''
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('-model', default="Transformer")
     parser.add_argument('-dataset', default="RoadDataSet")
     parser.add_argument('-epoch', type=int, default=10)
     parser.add_argument('-batch_size', type=int, default=1024)
@@ -186,7 +191,8 @@ def main():
     parser.add_argument('-n_layers', type=int, default=6)
     parser.add_argument('-n_warmup_steps', type=int, default=4000)
 
-    parser.add_argument('-dropout', type=float, default=0.1)
+    parser.add_argument('-dropout', type=float, default=0)
+    parser.add_argument('-bidirect', type=bool, default=False)
 
     parser.add_argument('-logdir', default='./')
     parser.add_argument('-save_model', default="model_saved")
@@ -201,14 +207,8 @@ def main():
 
 #     n_sample=opt.n_sample+1+44*3
 #    n_max_seq=4+2+opt.n_sample+1+44*3
-    model = Transformer(n_head=opt.n_head,
-                                n_max_seq=opt.n_max_seq,
-                                n_layers=opt.n_layers,
-                                d_model=opt.d_model,
-                                d_inner=opt.d_inner,
-                                d_k=opt.d_k,
-                                d_v=opt.d_v,
-                                dropout=opt.dropout).to(device)
+    model=ModelWrapper(opt.model,opt).model
+    model = model.to(device)
     total_params = sum(p.numel() for p in model.parameters())
     total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("total params:\t\t\t%d"%total_params)
@@ -230,12 +230,12 @@ def main():
 
     import dataloader
     from torch.utils.data import DataLoader
-    train_data_file = "./train_data/train_data3.pkl"
-    val_data_file = "./train_data/val_data3.pkl"
+    train_data_file = "./train_data/train_data2.pkl"
+    val_data_file = "./train_data/val_data2.pkl"
     
     ds=eval("dataloader."+opt.dataset)
-    training_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
-    validation_data=DataLoader(ds(val_data_file,opt.n_sample,opt.steps), batch_size=opt.batch_size)
+    training_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps,"train"), batch_size=opt.batch_size)
+    validation_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps,"val"), batch_size=opt.batch_size)
 
     optimizer= optim.Adam(model.parameters())
     train(model, training_data, validation_data, optimizer, device ,opt)

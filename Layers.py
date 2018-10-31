@@ -3,27 +3,104 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+class ModelWrapper():
+    def __init__(self, name, opt):
+        self.model=eval(name)(opt)
+
+class SimpleFC(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.fc1=nn.Linear(opt.n_max_seq*opt.d_model,opt.d_inner)
+        self.dropout=nn.Dropout(opt.dropout)
+        self.head1=nn.Linear(opt.d_inner,1)
+        self.head2=nn.Linear(opt.d_inner,1)
+        self.head3=nn.Linear(opt.d_inner,1)
+    def forward(self,x,**kw):
+        x=x.view(x.shape[0],-1)
+        x=self.fc1(x)
+        x=self.dropout(F.relu(x))
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+        return h1,h2,h3
+        
+class LSTM(nn.Module):
+    def __init__(self,opt):
+        super().__init__()
+        self.lstm=nn.LSTM(input_size = opt.d_model,
+                          hidden_size = opt.d_inner,
+                          batch_first = True,
+                          dropout = opt.dropout,
+                          num_layers = opt.n_layers,
+                          bidirectional = opt.bidirect)
+        self.head1=nn.Linear(opt.d_inner*opt.n_max_seq,1)
+        self.head2=nn.Linear(opt.d_inner*opt.n_max_seq,1)
+        self.head3=nn.Linear(opt.d_inner*opt.n_max_seq,1)
+    def forward(self,x, **kw):
+        #input batch x len x feature
+        #output batch x len x d_inner(x 2 if bidirectional)
+        output=self.lstm(x)
+        a=output[0].contiguous().view(x.shape[0],-1)
+        h1=self.head1(a) #15 min
+        h2=self.head2(a) #60 min
+        h3=self.head3(a) #6 hrs
+        return h1,h2,h3
+
+class GRU(nn.Module):
+    def __init__(self,opt):
+        super().__init__()
+        self.gru=nn.GRU(input_size = opt.n_max_seq,
+                          hidden_size = opt.d_inner,
+                          batch_first = True,
+                          dropout = opt.dropout,
+                          num_layers = opt.n_layers,
+                          bidirectional = opt.bidirect)
+        self.head1=nn.Linear(opt.d_inner*opt.d_model,1)
+        self.head2=nn.Linear(opt.d_inner*opt.d_model,1)
+        self.head3=nn.Linear(opt.d_inner*opt.d_model,1)
+    def forward(self,x, **kw):
+        #input batch x len x feature
+        #output batch x len x d_inner(x 2 if bidirectional)
+        x=x.permute(0,2,1)
+        output=self.gru(x)
+        a=output[0].contiguous().view(x.shape[0],-1)
+        h1=self.head1(a) #15 min
+        h2=self.head2(a) #60 min
+        h3=self.head3(a) #6 hrs
+        return h1,h2,h3
+    
 class Transformer(nn.Module):
-    def __init__(self,n_max_seq,
-                    n_head,
-                    n_layers,
-                    d_model,
-                    d_inner,
-                    d_k,
-                    d_v,
-                    dropout=0.1):
+    '''
+    multi head self-attention model
+    '''
+    def __init__(self,opt):
         super().__init__()
         #self.fc=nn.Linear(1, d_model)
-        self.encoder_stack=nn.ModuleList([EncoderLayer(n_head, d_model,d_inner,d_k,d_v, dropout) for _ in range(n_layers)])
-        self.conv1=nn.Conv1d(d_model,8,30)
-        self.conv2=nn.Conv1d(d_model,8,30)
-        self.conv3=nn.Conv1d(d_model,8,30) # (n_max_seq-29)
-        self.conv1_1=nn.Conv1d(8,16,30)
-        self.conv2_1=nn.Conv1d(8,16,30)
-        self.conv3_1=nn.Conv1d(8,16,30) #
-        self.head1=nn.Linear((n_max_seq-29-29)*16,1)
-        self.head2=nn.Linear((n_max_seq-29-29)*16,1)
-        self.head3=nn.Linear((n_max_seq-29-29)*16,1)
+        n_max_seq=opt.n_max_seq
+        n_layers=opt.n_layers
+        d_model=opt.d_model
+        d_inner=opt.d_inner
+        d_k=opt.d_k
+        d_v=opt.d_v
+        dropout=opt.dropout
+        self.n_head=opt.n_head
+        self.encoder_stack=nn.ModuleList([EncoderLayer(opt.n_head, d_model,d_inner,d_k,d_v, dropout) for _ in range(n_layers)])
+#         self.conv1=nn.Conv1d(d_model,8,30,stride=3)
+#         self.conv2=nn.Conv1d(d_model,8,30,stride=3)
+#         self.conv3=nn.Conv1d(d_model,8,30,stride=3) # (n_max_seq-30)/stride-1
+        
+#         self.conv1_1=nn.Conv1d(8,16,30,stride=2)
+#         self.conv2_1=nn.Conv1d(8,16,30,stride=2)
+#         self.conv3_1=nn.Conv1d(8,16,30,stride=2) #
+        
+#         w=(n_max_seq-30)//3+1
+#         w=(w-30)//2+1
+#         self.head1=nn.Linear(w*16,1)
+#         self.head2=nn.Linear(w*16,1)
+#         self.head3=nn.Linear(w*16,1)
+        self.head1=nn.Linear(n_max_seq*d_model,1)
+        self.head2=nn.Linear(n_max_seq*d_model,1)
+        self.head3=nn.Linear(n_max_seq*d_model,1)
     
     def forward(self, x, mask=None):
         #x=self.fc(x)
@@ -33,25 +110,30 @@ class Transformer(nn.Module):
             assert mask.dim() == 2
             assert mask.size(0) == x.size(0)
             mask=mask.repeat(1,len_q).view(b,len_q,len_q)
-            mask=mask.repeat(8,1,1)
+            mask=mask.repeat(self.n_head,1,1)
         
         for encoder in self.encoder_stack:
             a=encoder(x,mask=mask)
-        x=x.view(b,1,-1)
-        x1=self.conv1(x)
-        x1=self.conv1_1(x1)
-        x1=x1.view(b,-1)
-        h1=self.head1(x1)
+#         x=x.view(b,1,-1)
+#         x1=self.conv1(x)
+#         x1=self.conv1_1(x1)
+#         x1=x1.view(b,-1)
+#         h1=self.head1(x1)
         
-        x2=self.conv2(x)
-        x2=self.conv2_1(x2)
-        x2=x2.view(b,-1)
-        h2=self.head2(x2)
+#         x2=self.conv2(x)
+#         x2=self.conv2_1(x2)
+#         x2=x2.view(b,-1)
+#         h2=self.head2(x2)
         
-        x3=self.conv3(x)
-        x3=self.conv3_1(x3)
-        x3=x3.view(b,-1)
-        h3=self.head3(x3)
+#         x3=self.conv3(x)
+#         x3=self.conv3_1(x3)
+#         x3=x3.view(b,-1)
+#         h3=self.head3(x3)
+        x=x.view(b,-1)
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+
         return h1,h2,h3
 
 
