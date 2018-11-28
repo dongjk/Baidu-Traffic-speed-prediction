@@ -24,6 +24,153 @@ class SimpleFC(nn.Module):
         h3=self.head3(x) #6 hrs
         return h1,h2,h3
         
+class SimpleFC2(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.fc1=nn.Linear(opt.n_max_seq*opt.d_model,opt.d_inner)
+        self.dropout=nn.Dropout(opt.dropout)
+        self.fc2=nn.Linear(opt.d_inner,opt.d_inner2)
+        self.head1=nn.Linear(opt.d_inner2,1)
+        self.head2=nn.Linear(opt.d_inner2,1)
+        self.head3=nn.Linear(opt.d_inner2,1)
+    def forward(self,x,**kw):
+        x=x.view(x.shape[0],-1)
+        x=self.fc1(x)
+        x=self.dropout(F.relu(x))
+        x=self.fc2(x)
+        x=F.relu(x)
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+        return h1,h2,h3
+
+class SimpleFC3(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.fc1=nn.Linear(opt.n_max_seq*opt.d_model,opt.d_inner)
+        self.dropout=nn.Dropout(opt.dropout)
+        self.fc2=nn.Linear(opt.d_inner,opt.d_inner2)
+        self.fc3=nn.Linear(opt.d_inner2,opt.d_inner3)
+        self.head1=nn.Linear(opt.d_inner3,1)
+        self.head2=nn.Linear(opt.d_inner3,1)
+        self.head3=nn.Linear(opt.d_inner3,1)
+    def forward(self,x,**kw):
+        x=x.view(x.shape[0],-1)
+        x=self.fc1(x)
+        x=self.dropout(F.relu(x))
+        x=self.fc2(x)
+        x=F.relu(x)
+        x=self.fc3(x)
+        x=F.relu(x)
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+        return h1,h2,h3
+    
+class SimpleFC4(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.fc1=nn.Linear(opt.n_max_seq*opt.d_model,opt.d_inner)
+        self.dropout=nn.Dropout(opt.dropout)
+        self.fc2=nn.Linear(opt.d_inner,opt.d_inner2)
+        self.fc3=nn.Linear(opt.d_inner2,opt.d_inner3)
+        self.fc4=nn.Linear(opt.d_inner3,opt.d_inner4)
+        self.head1=nn.Linear(opt.d_inner4,1)
+        self.head2=nn.Linear(opt.d_inner4,1)
+        self.head3=nn.Linear(opt.d_inner4,1)
+    def forward(self,x,**kw):
+        x=x.view(x.shape[0],-1)
+        x=self.fc1(x)
+        x=self.dropout(F.relu(x))
+        x=self.fc2(x)
+        x=F.relu(x)
+        x=self.fc3(x)
+        x=F.relu(x)
+        x=self.fc4(x)
+        x=F.relu(x)
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+        return h1,h2,h3   
+
+    
+class SimpleFC5(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.fc1=nn.Linear(opt.n_max_seq*opt.d_model,opt.d_inner)
+        self.dropout=nn.Dropout(opt.dropout)
+        self.fc2=nn.Linear(opt.d_inner,opt.d_inner2)
+        self.fc3=nn.Linear(opt.d_inner2,opt.d_inner3)
+        self.fc4=nn.Linear(opt.d_inner3,opt.d_inner4)
+        self.fc5=nn.Linear(opt.d_inner4,opt.d_inner5)
+        self.head1=nn.Linear(opt.d_inner5,1)
+        self.head2=nn.Linear(opt.d_inner5,1)
+        self.head3=nn.Linear(opt.d_inner5,1)
+    def forward(self,x,**kw):
+        x=x.view(x.shape[0],-1)
+        x=self.fc1(x)
+        x=self.dropout(F.relu(x))
+        x=self.fc2(x)
+        x=F.relu(x)
+        x=self.fc3(x)
+        x=F.relu(x)
+        x=self.fc4(x)
+        x=F.relu(x)
+        x=self.fc5(x)
+        x=F.relu(x)
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+        return h1,h2,h3       
+
+class SimpleFC5_block(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.fc1=nn.Linear(opt.n_max_seq*opt.d_model,opt.d_inner)
+        self.dropout=nn.Dropout(opt.dropout)
+        
+        self.fc3_res=nn.Linear(opt.d_inner,opt.d_inner3)
+        self.fc4_res=nn.Linear(opt.d_inner,opt.d_inner4)
+        self.fc2_1=nn.Linear(opt.d_inner,opt.d_inner2)
+        self.fc2_2=nn.Linear(opt.d_inner2,opt.d_inner2)
+        self.fc3_1=nn.Linear(opt.d_inner2,opt.d_inner3)
+        self.fc3_2=nn.Linear(opt.d_inner3,opt.d_inner3)
+        self.fc3_3=nn.Linear(opt.d_inner3,opt.d_inner3)
+        self.fc4_1=nn.Linear(opt.d_inner3,opt.d_inner4)
+        self.fc4_2=nn.Linear(opt.d_inner4,opt.d_inner4)
+        self.fc5=nn.Linear(opt.d_inner4,opt.d_inner5)
+        self.head1=nn.Linear(opt.d_inner5,1)
+        self.head2=nn.Linear(opt.d_inner5,1)
+        self.head3=nn.Linear(opt.d_inner5,1)
+    def forward(self,x,**kw):
+        x=x.view(x.shape[0],-1)
+        x=self.fc1(x)
+        x=self.dropout(F.relu(x))
+        res3=self.fc3_res(x)
+        res4=self.fc4_res(x)
+        x=self.fc2_1(x)
+        x=F.relu(x)
+        x=self.fc2_2(x)
+        x=F.relu(x)
+        x=self.fc3_1(x)
+        x=F.relu(x)
+        x=self.fc3_2(x)
+        x=F.relu(x)
+        x=self.fc3_3(x)
+        x=F.relu(x)
+        x=x+res3
+        x=self.fc4_1(x)
+        x=F.relu(x)
+        x=self.fc4_2(x)
+        x=F.relu(x)
+        x=x+res4
+        x=self.fc5(x)
+        x=F.relu(x)
+        h1=self.head1(x) #15 min
+        h2=self.head2(x) #60 min
+        h3=self.head3(x) #6 hrs
+        return h1,h2,h3  
+
 class LSTM(nn.Module):
     def __init__(self,opt):
         super().__init__()

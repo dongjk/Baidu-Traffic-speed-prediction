@@ -6,7 +6,7 @@ import random
 from torch.utils.data import Dataset
 
 class RoadDataSetBase(Dataset):  
-    def __init__(self, datafile, n_sample, steps, phase):
+    def __init__(self, datafile, n_sample, steps, phase,**kw):
         '''
         batch x 45 x features.
         features including n_sample speed fc in time seg, road attrs, etc.
@@ -58,7 +58,7 @@ class RoadDataSetBase(Dataset):
 
 
 class RoadDataSet3(RoadDataSetBase):
-    def __init__(self, datafile, n_sample, steps, phase):
+    def __init__(self, datafile, n_sample, steps, phase, **kw):
         '''        
         batch x features x 1
         
@@ -84,18 +84,57 @@ class RoadDataSet3(RoadDataSetBase):
         m=np.zeros((4+2+21+self.n_sample+1,))
         mask=np.concatenate((m, self.mask[rid], self.mask[rid], self.mask[rid]))
         
-        tgt1=self.train_raw[rid,cur+1]
-        tgt2=self.train_raw[rid,cur+4]
-        tgt3=self.train_raw[rid,cur+24]
+        tgt1=self.train_raw[rid,cur]
+        tgt2=self.train_raw[rid,cur+3]
+        tgt3=self.train_raw[rid,cur+23]
         return np.expand_dims(src_seq,axis=2), mask, tgt1, tgt2, tgt3
 
+
+class RoadDataSet32(RoadDataSetBase):
+    def __init__(self, datafile, n_sample, steps,phase, n_nb_sample):
+        '''
+        batch x features x 1
+
+        '''
+        super().__init__(datafile, n_sample, steps, phase)
+        self.n_nb_sample=n_nb_sample
+
+    def __getitem__(self, idx):
+        if self.phase=='test':
+            rid=idx // (self.n_time_seg)
+            #rid=1
+            tid=idx % (self.n_time_seg)
+        else:
+            rid,tid=self.get_random_id()
+        cur=tid+self.span #current time point
+        h=[(cur%96)/24]
+        t = self.time_feature[cur,0:4]
+        g = self.gps[rid]
+        at= self.attrs[rid]
+        a = self.train_raw[rid, cur-self.n_sample:cur] # main speed
+        b = self.train_raw[rid, tid].reshape((1,))  # speed 24hr ago
+        c = self.train_raw[self.geo_nebor_idx[rid],cur-self.n_nb_sample:cur] #neibor speed in 3 time seg
+        src_seq=np.concatenate((t,g,at,a,b,c.reshape(-1)))
+
+        m=np.zeros((4+2+21+self.n_sample+1,))
+        mask=np.concatenate((m, self.mask[rid], self.mask[rid], self.mask[rid]))
+
+        tgt1=self.train_raw[rid,cur+0]
+        tgt2=self.train_raw[rid,cur+3]
+        tgt3=self.train_raw[rid,cur+23]
+        return np.expand_dims(src_seq,axis=2), mask, tgt1, tgt2, tgt3
+
+
+
+
+
 class RoadDataSet4(RoadDataSetBase):
-    def __init__(self, datafile, n_sample, steps, phase):
+    def __init__(self, datafile, n_sample, steps, phase, **kw):
         '''
         batch x 45 x features.
         features including n_sample speed fc in time seg, road attrs, etc.
         '''
-        super().__init__(datafile, n_sample, steps, phase)
+        super().__init__(datafile, n_sample, steps, phase,**kw)
 
     def __getitem__(self, idx):
         if self.phase=='test':

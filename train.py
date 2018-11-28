@@ -7,9 +7,12 @@ from tqdm import tqdm
 import torch.optim as optim
 
 def cal_performance(a , b1,b2,b3):
-    loss_15min = torch.sqrt(nn.MSELoss()(a[0],b1.unsqueeze(1)))
-    loss_60min = torch.sqrt(nn.MSELoss()(a[1],b2.unsqueeze(1)))
-    loss_6hour = torch.sqrt(nn.MSELoss()(a[2],b3.unsqueeze(1)))
+#     loss_15min = torch.sqrt(nn.MSELoss()(a[0],b1.unsqueeze(1)))
+#     loss_60min = torch.sqrt(nn.MSELoss()(a[1],b2.unsqueeze(1)))
+#     loss_6hour = torch.sqrt(nn.MSELoss()(a[2],b3.unsqueeze(1)))
+    loss_15min = nn.MSELoss()(a[0],b1.unsqueeze(1))
+    loss_60min = nn.MSELoss()(a[1],b2.unsqueeze(1))
+    loss_6hour = nn.MSELoss()(a[2],b3.unsqueeze(1))
     
     loss = loss_15min + loss_60min + loss_6hour
     
@@ -22,7 +25,7 @@ def cal_performance(a , b1,b2,b3):
 def get_acc_num(pred, target, percent):
     p=pred.cpu().data.numpy()
     t=target.cpu().data.numpy()
-    return (np.absolute(p-t)/t < percent).sum()
+    return (np.absolute(p-t)/t).mean()
 
 def train_epoch(model, training_data, optimizer, device, batch_size):
     ''' Epoch operation in training phase'''
@@ -63,10 +66,10 @@ def train_epoch(model, training_data, optimizer, device, batch_size):
         total_acc_6hour += acc_num_6hour
         count += 1
 
-    loss, loss_15min, loss_60min, loss_6hour = total_loss/count, \
-        total_loss_15min/count, total_loss_60min/count, total_loss_6hour/count
-    acc_15min, acc_60min, acc_6hour = 100*total_acc_15min/(count*batch_size), \
-        100*total_acc_60min/(count*batch_size), 100*total_acc_6hour/(count*batch_size)
+    loss, loss_15min, loss_60min, loss_6hour = np.sqrt(total_loss/count), \
+        np.sqrt(total_loss_15min/count), np.sqrt(total_loss_60min/count), np.sqrt(total_loss_6hour/count)
+    acc_15min, acc_60min, acc_6hour = 100*total_acc_15min/(count), \
+        100*total_acc_60min/(count), 100*total_acc_6hour/(count)
     
     return loss, loss_15min, loss_60min, loss_6hour, acc_15min, acc_60min, acc_6hour
 
@@ -102,10 +105,10 @@ def eval_epoch(model,val_data, optimizer, device, batch_size):
         total_acc_6hour += acc_num_6hour
         count += 1
 
-    loss, loss_15min, loss_60min, loss_6hour = total_loss/count, \
-        total_loss_15min/count, total_loss_60min/count, total_loss_6hour/count
-    acc_15min, acc_60min, acc_6hour = 100*total_acc_15min/(count*batch_size), \
-        100*total_acc_60min/(count*batch_size), 100*total_acc_6hour/(count*batch_size)
+    loss, loss_15min, loss_60min, loss_6hour = np.sqrt(total_loss/count), \
+        np.sqrt(total_loss_15min/count), np.sqrt(total_loss_60min/count), np.sqrt(total_loss_6hour/count)
+    acc_15min, acc_60min, acc_6hour = 100*total_acc_15min/(count), \
+        100*total_acc_60min/(count), 100*total_acc_6hour/(count)
     
     return loss, loss_15min, loss_60min, loss_6hour, acc_15min, acc_60min, acc_6hour
 
@@ -141,7 +144,7 @@ def train(model, training_data, validation_data, optimizer, device, opt):
 
         valid_accus += [vloss]
         rmses_15min += [vloss_15min]
-        if vloss_15min<3.71:
+        if vloss_15min<3.59:
              with open(opt.logdir + '/newrecord', 'a') as f:
                 f.write('{loss_15min:8.5f}\n'.format(loss_15min=vloss_15min))
         model_state_dict = model.state_dict()
@@ -182,8 +185,13 @@ def main():
 
     parser.add_argument('-n_max_seq', type=int, default=30)
     parser.add_argument('-n_sample', type=int, default=24)
+    parser.add_argument('-n_nb_sample', type=int, default=3)
     parser.add_argument('-d_model', type=int, default=64)
     parser.add_argument('-d_inner', type=int, default=256)
+    parser.add_argument('-d_inner2', type=int, default=256)
+    parser.add_argument('-d_inner3', type=int, default=None)
+    parser.add_argument('-d_inner4', type=int, default=None)
+    parser.add_argument('-d_inner5', type=int, default=None)
     parser.add_argument('-d_k', type=int, default=8)
     parser.add_argument('-d_v', type=int, default=8)
 
@@ -234,8 +242,8 @@ def main():
     val_data_file = "./train_data/val_data2.pkl"
     
     ds=eval("dataloader."+opt.dataset)
-    training_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps,"train"), batch_size=opt.batch_size)
-    validation_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps,"val"), batch_size=opt.batch_size)
+    training_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps,"train", n_nb_sample=opt.n_nb_sample),num_workers=1,  batch_size=opt.batch_size)
+    validation_data=DataLoader(ds(train_data_file,opt.n_sample,opt.steps,"val", n_nb_sample=opt.n_nb_sample),num_workers=1, batch_size=opt.batch_size)
 
     optimizer= optim.Adam(model.parameters())
     train(model, training_data, validation_data, optimizer, device ,opt)

@@ -10,9 +10,9 @@ output_time_feature_file = "./clean/time_feature_15min.pkl"
 geo_data_file = "./clean/geo.pkl"
 
 
-train_data_file = "./train_data/train_data.pkl"
+train_data_file = "./train_data/train_data2.pkl"
 
-val_data_file = "./train_data/val_data.pkl"
+val_data_file = "./train_data/val_data2.pkl"
 
 id_idx_gps_file = "./train_data/id_idx_gps.txt"
 
@@ -83,7 +83,16 @@ for id in range(len(id_link_dict)):
     gps1 = raw_dict['gps'][1]
     link_idx_gps.append((link_id, id, gps0, gps1))
 
-link_idx_gps.append(("PADDING", len(id_link_dict), 0, 0))
+
+link_idx_gps.append(("-1", len(id_link_dict), 0, 0))
+link_idx_gps=np.asarray(link_idx_gps).astype(np.float)
+mean = np.mean(link_idx_gps[:, 2], axis=0)
+std = np.std(link_attrs[:, 2], axis=0)
+gpsa=(link_idx_gps[:, 2]-mean)/std
+mean = np.mean(link_idx_gps[:, 3], axis=0)
+std = np.std(link_attrs[:, 3], axis=0)
+gpsb=(link_idx_gps[:, 3]-mean)/std
+gps=np.concatenate((gpsa.reshape((-1,1)),gpsb.reshape((-1,1))),axis=1)
 
 with open(id_idx_gps_file, 'w') as f:
     for link_id, id, gps0, gps1 in link_idx_gps:
@@ -126,8 +135,8 @@ val_raw = full_raw[:, TRAIN_LENGTH -24:]
 mean_speed = np.mean(train_raw)
 std_speed = np.std(train_raw)
 
-train_raw = (train_raw - mean_speed)/std_speed
-val_raw = (val_raw - mean_speed)/std_speed
+#train_raw = (train_raw - mean_speed)/std_speed
+#val_raw = (val_raw - mean_speed)/std_speed
 
 train_one_month['speed_ary'] = train_raw
 val_one_month['speed_ary'] = val_raw
@@ -137,6 +146,9 @@ train_one_month['std_speed_train'] = std_speed
 
 val_one_month['mean_speed_train'] = mean_speed
 val_one_month['std_speed_train'] = std_speed
+
+train_one_month['gps'] = gps
+val_one_month['gps'] = gps
 
 print(mean_speed)
 print(std_speed)
@@ -208,6 +220,10 @@ val_one_month['geo_nebor_attrs'] = geo_nebor_attrs
 train_one_month['geo_nebor_idx'] = geo_nebor_idx
 val_one_month['geo_nebor_idx'] = geo_nebor_idx
 
+mask=np.zeros(geo_nebor_idx.shape)
+mask[geo_nebor_idx==44172]=1
+train_one_month['mask'] = mask
+val_one_month['mask'] = mask
 
 with open(train_data_file, 'wb') as f:
     pickle.dump(train_one_month, file=f)
