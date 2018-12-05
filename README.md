@@ -1,6 +1,6 @@
 # Baidu Traffic speed prediction
 
-This notebook is training part description of "[Baidu Traffic Speed Prediction](https://ai.baidu.com/broad/subordinate?dataset=traffic)"
+This repo is implementation of "[Baidu Traffic Speed Prediction](https://ai.baidu.com/broad/subordinate?dataset=traffic)"
 
 A random mechanism is used in this implementation, program will choose Model from **self-attention**, **GRU**, **1-5 hidden layers Dense net**, also random choose **hyper parameters** and random choose **data features** to train.
 
